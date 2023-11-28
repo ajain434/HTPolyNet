@@ -87,7 +87,7 @@ class Runtime:
         'densification':
             {
                 'initial_density':
-                    200.0,    # kg/m3
+                    200.0,  # kg/m3
                 'aspect_ratio':
                     np.array([1.0, 1.0, 1.0]),
                 'equilibration':
@@ -111,15 +111,15 @@ class Runtime:
                 'preequilibration':
                     {
                         'ensemble': 'npt',
-                        'temperature': 300,    # K
-                        'pressure': 1,    # bar
+                        'temperature': 300,  # K
+                        'pressure': 1,  # bar
                         'ps':
-                            100    # we should probably bring to a desired pressure after densification
+                            100  # we should probably bring to a desired pressure after densification
                     },
                 'anneal':
                     {
                         'ncycles':
-                            0,    # default none
+                            0,  # default none
                         'initial_temperature':
                             300,
                         'cycle_segments':
@@ -145,9 +145,9 @@ class Runtime:
                 'postequilibration':
                     {
                         'ensemble': 'npt',
-                        'temperature': 300,    # K
-                        'pressure': 1,    # bar
-                        'ps': 0    # default none
+                        'temperature': 300,  # K
+                        'pressure': 1,  # bar
+                        'ps': 0  # default none
                     }
             },
         'CURE': {},
@@ -156,7 +156,7 @@ class Runtime:
                 'anneal':
                     {
                         'ncycles':
-                            0,    # default none
+                            0,  # default none
                         'initial_temperature':
                             300,
                         'cycle_segments':
@@ -182,9 +182,9 @@ class Runtime:
                 'postequilibration':
                     {
                         'ensemble': 'npt',
-                        'temperature': 300,    # K
-                        'pressure': 1,    # bar
-                        'ps': 0    # default none
+                        'temperature': 300,  # K
+                        'pressure': 1,  # bar
+                        'ps': 0  # default none
                     }
             }
     }
@@ -199,13 +199,16 @@ class Runtime:
 
         """
         my_logger(software.to_string(), logger.info)
+
         self.cfgfile = cfgfile
         if cfgfile == '':
             logger.error('HTPolyNet requires a configuration file.')
             raise RuntimeError('HTPolyNet requires a configuration file')
         logger.info(f'Configuration: {cfgfile}')
+
         self.cfg = Configuration.read(os.path.join(pfs.root(), cfgfile))
-        """ Fill in any default values """
+
+        # Fill in any default values
         for k, default_values in self.runtime_defaults.items():
             if not k in self.cfg.parameters:
                 self.cfg.parameters[k] = default_values
@@ -213,12 +216,16 @@ class Runtime:
                 for kk, vv in default_values.items():
                     if not kk in self.cfg.parameters[k]:
                         self.cfg.parameters[k][kk] = vv
+
         software.set_gmx_preferences(self.cfg.parameters)
         self.TopoCoord = TopoCoord(system_name='htpolynet')
+
         self.cfg.parameters['restart'] = restart
         if self.cfg.parameters['restart']:
             logger.info(f'Restarting in {pfs.proj()}')
+
         self.molecules: MoleculeDict = {}
+
         cure_dict = self.cfg.parameters.get('CURE', {})
         if cure_dict:
             logger.debug('Setting up cure controller')
@@ -267,9 +274,12 @@ class Runtime:
                 force_checkin=force_checkin
             )
             self.molecules[mname] = M
-        ''' Generate any required template products that result from reactions in which the bond generated creates
-            dihedrals that span more than just the two monomers that are connected '''
+
+        # Generate any required template products that result from reactions in
+        # which the bond generated creates dihedrals that span more than just
+        # the two monomers that are connected.
         new_reactions, new_molecules = chain_expand_reactions(self.molecules)
+
         if len(new_molecules) > 0:
             ess = '' if len(new_molecules) == 1 else 's'
             logger.info(
@@ -282,6 +292,7 @@ class Runtime:
                 k: v
                 for k, v in new_molecules.items() if k not in self.molecules
             }
+
             for mname, M in make_molecules.items():
                 # logger.debug(f'Generating {mname}:')
                 self._generate_molecule(
@@ -318,6 +329,7 @@ class Runtime:
 
         ess = '' if len(self.molecules) == 1 else 's'
         logger.info(f'Generated {len(self.molecules)} molecule template{ess}')
+
         if self.cfg.initial_composition:
             cmp_msg = ", ".join(
                 [
@@ -419,7 +431,7 @@ class Runtime:
         """
         if not hasattr(self, 'cc'):
             logger.debug(f'no cure controller')
-            return    # no cure controller
+            return  # no cure controller
         cc = self.cc
         TC = self.TopoCoord
         RL = self.cfg.reactions
@@ -505,24 +517,32 @@ class Runtime:
         force_checkin = kwargs.get('force_checkin', False)
         TC = self.TopoCoord
         pfs.go_proj()
+
         self.generate_molecules(
-            force_parameterization=
-            force_parameterization,    # force antechamber/GAFF parameterization
-            force_checkin=force_checkin    # force check-in to system libraries
+            # force antechamber/GAFF parameterization
+            force_parameterization=force_parameterization,
+            # force check-in to system libraries
+            force_checkin=force_checkin
         )
+
         pfs.go_proj()
         last_data = cp.read_checkpoint()
         logger.debug(f'Checkpoint last_data {last_data}')
         TC.load_files(last_data)
+
         pfs.go_to(f'systems/init')
         self.do_initialization()
+
         pfs.go_to(f'systems/densification')
         self.do_densification()
+
         pfs.go_to(f'systems/precure')
         self.do_precure()
         self.do_cure()
+
         pfs.go_to(f'systems/postcure')
         self.do_postcure()
+
         pfs.go_to(f'systems/final-results')
         self.save_data()
         pfs.go_proj()
@@ -663,7 +683,9 @@ class Runtime:
             logger.debug(
                 f'{inpfnm}.top already exists in {pfs.cwd()} but we will rebuild it anyway!'
             )
-        ''' for each monomer named in the cfg, either parameterize it or fetch its parameterization '''
+
+        # for each monomer named in the cfg,
+        # either parameterize it or fetch its parameterization
         TC = self.TopoCoord
         already_merged = []
         for item in self.cfg.initial_composition:
@@ -684,6 +706,7 @@ class Runtime:
             t.rep_ex(N)
             TC.Topology.merge(t)
             already_merged.append(M.name)
+
         for othermol, M in self.molecules.items():
             if not othermol in already_merged:
                 logger.debug(
@@ -716,8 +739,8 @@ class Runtime:
                 densification_dict['initial_boxsize'] = self.cfg.parameters[
                     'initial_boxsize']
         dspec = [
-            'initial_density' in densification_dict, 'initial_boxsize'
-            in densification_dict
+            'initial_density' in densification_dict,
+            'initial_boxsize' in densification_dict
         ]
         # logger.debug(f'{dspec} {any(dspec)} {not all(dspec)}')
         assert any(
@@ -798,6 +821,7 @@ class Runtime:
                         f'molecules/parameterized/{isomer}.gro',
                         altpath=[pfs.subpath('molecules')]
                     )
+
         logger.debug(f'Sending to insert_molecules: {c_togromacs}')
         msg = insert_molecules(
             c_togromacs,
@@ -919,7 +943,7 @@ class Runtime:
         ncycles = anneal_dict.get('ncycles', 0)
         if not ncycles:
             return
-        mdp_pfx = 'nvt'    # assume all annealing run at NVT
+        mdp_pfx = 'nvt'  # assume all annealing run at NVT
         TC = self.TopoCoord
         gromacs_dict = self.cfg.parameters.get('gromacs', {})
         pfs.checkout(f'mdp/{mdp_pfx}.mdp')

@@ -53,22 +53,26 @@ def enableCheckpoint(method):
     """
     @functools.wraps(method)
     def wrapper_method(self, *args, **kwargs):
-        ''' define working directory as current directory relative to the checkpoint '''
+        # define working directory as current directory relative to the checkpoint
         mywd = os.path.relpath(os.getcwd(), _CP_.my_abspath)
-        ''' if the method calling this from the current directory is already in the checkpoint history, 
-        to not call the method, just return '''
+
+        # if the method calling this from the current directory is already in the checkpoint history,
+        # do not call the method, just return
         if len(_CP_.calls) > 0 and (method.__name__, mywd) in _CP_.calls:
             logger.info(f'Skipping {method.__name__} in {mywd}')
             return
-        ''' call the method, save result '''
+
+        # ''' call the method, save result '''
         result = method(self, *args, **kwargs)
-        ''' register this method call in this directory and its results '''
+
+        # ''' register this method call in this directory and its results '''
         _CP_.calls.append((method.__name__, mywd))
-        _CP_.results.update(result)    # must be a dict
+        _CP_.results.update(result)  # must be a dict
         _CP_.narrative.append(
             f'Method {method.__name__} called in {os.path.join(_CP_.my_abspath,mywd)} gave result {result}'
         )
-        ''' update the written checkpoint file '''
+
+        # ''' update the written checkpoint file '''
         _write_checkpoint()
         return result
 

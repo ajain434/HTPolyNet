@@ -207,7 +207,8 @@ class Configuration:
                 logging.debug(f'{mname} seq: {self.molecules[mname].sequence}')
 
     def calculate_maximum_conversion(self):
-        """calculate_maximum_conversion calculates the maximum number of polymerization bonds that can form based on specified system composition and reactions
+        """calculate_maximum_conversion calculates the maximum number of
+        polymerization bonds that can form based on specified system composition and reactions
         """
         Atom = namedtuple(
             'Atom', ['name', 'resid', 'reactantKey', 'reactantName', 'z']
@@ -236,7 +237,7 @@ class Configuration:
                 arnum, brnum = a['reactant'], b['reactant']
                 arn, brn = R.reactants[arnum], R.reactants[brnum]
                 if arnum == brnum:
-                    continue    # this is an intramolecular reaction
+                    continue  # this is an intramolecular reaction
                 az, bz = a['z'], b['z']
                 ia = Atom(aan, ari, arnum, arn, az)
                 ib = Atom(ban, bri, brnum, brn, bz)
