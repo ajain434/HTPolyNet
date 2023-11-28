@@ -9,8 +9,12 @@
 import logging
 from copy import deepcopy
 
+
 class BondTemplate:
-    def __init__(self,names,resnames,intraresidue,order,bystander_resnames,bystander_atomnames,oneaway_resnames,oneaway_atomnames):
+    def __init__(
+        self, names, resnames, intraresidue, order, bystander_resnames,
+        bystander_atomnames, oneaway_resnames, oneaway_atomnames
+    ):
         """__init__ create a BondTemplate object
 
         :param names: names of atoms in the bond
@@ -30,35 +34,39 @@ class BondTemplate:
         :param oneaway_atomnames: names of atoms in one-away residues
         :type oneaway_atomnames: list-like container of strs
         """
-        self.names=names
-        self.resnames=resnames
-        self.intraresidue=intraresidue
-        self.bystander_resnames=bystander_resnames
-        self.bystander_atomnames=bystander_atomnames
-        self.oneaway_resnames=oneaway_resnames
-        self.oneaway_atomnames=oneaway_atomnames
-        self.order=order
+        self.names = names
+        self.resnames = resnames
+        self.intraresidue = intraresidue
+        self.bystander_resnames = bystander_resnames
+        self.bystander_atomnames = bystander_atomnames
+        self.oneaway_resnames = oneaway_resnames
+        self.oneaway_atomnames = oneaway_atomnames
+        self.order = order
+
     def reverse(self):
         """reverse the order of all parallel lists in a BondTemplate object
         """
-        self.names=self.names[::-1]
-        self.resnames=self.resnames[::-1]
-        self.bystander_resnames=self.bystander_resnames[::-1]
-        self.bystander_atomnames=self.bystander_atomnames[::-1]
-        self.oneaway_resnames=self.oneaway_resnames[::-1]
-        self.oneaway_atomnames=self.oneaway_atomnames[::-1]
+        self.names = self.names[::-1]
+        self.resnames = self.resnames[::-1]
+        self.bystander_resnames = self.bystander_resnames[::-1]
+        self.bystander_atomnames = self.bystander_atomnames[::-1]
+        self.oneaway_resnames = self.oneaway_resnames[::-1]
+        self.oneaway_atomnames = self.oneaway_atomnames[::-1]
+
     def __str__(self):
         return f'BondTemplate {self.names} resnames {self.resnames} intraresidue? {self.intraresidue} order {self.order} bystander-resnames {self.bystander_resnames} bystander-atomnames {self.bystander_atomnames} oneaway-resnames {self.oneaway_resnames} oneaway-atomnames {self.oneaway_atomnames}'
-    def __eq__(self,other):
-        check=self.names==other.names
-        check=check and self.intraresidue==other.intraresidue
-        check=check and self.resnames==other.resnames
-        check=check and self.bystander_resnames==other.bystander_resnames
-        check=check and self.bystander_atomnames==other.bystander_atomnames
-        check=check and self.oneaway_resnames==other.oneaway_resnames
-        check=check and self.oneaway_atomnames==other.oneaway_atomnames
+
+    def __eq__(self, other):
+        check = self.names == other.names
+        check = check and self.intraresidue == other.intraresidue
+        check = check and self.resnames == other.resnames
+        check = check and self.bystander_resnames == other.bystander_resnames
+        check = check and self.bystander_atomnames == other.bystander_atomnames
+        check = check and self.oneaway_resnames == other.oneaway_resnames
+        check = check and self.oneaway_atomnames == other.oneaway_atomnames
         return check
-    def is_reverse_of(self,other):
+
+    def is_reverse_of(self, other):
         """is_reverse_of return True if self and other are reverse of each other
 
         :param other: another BondTemplate object
@@ -66,14 +74,19 @@ class BondTemplate:
         :return: True if self and other are reverse copies of each other
         :rtype: bool
         """
-        rb=deepcopy(other)
+        rb = deepcopy(other)
         rb.reverse()
-        return self==rb
+        return self == rb
 
-BondTemplateList=list[BondTemplate]
+
+BondTemplateList = list[BondTemplate]
+
 
 class ReactionBond:
-    def __init__(self,idx,resids,order,bystanders,bystanders_atomidx,oneaways,oneaways_atomidx):
+    def __init__(
+        self, idx, resids, order, bystanders, bystanders_atomidx, oneaways,
+        oneaways_atomidx
+    ):
         """__init__ generate a new ReactionBond object
 
         :param idx: indices of two atoms that form the bond
@@ -91,21 +104,24 @@ class ReactionBond:
         :param oneaways_atomidx: list of one-away atom indices
         :type oneaways_atomidx: list of ints
         """
-        self.idx=idx
-        self.resids=resids
-        self.bystander_resids=bystanders
-        self.bystander_atomidx=bystanders_atomidx
-        self.oneaway_resids=oneaways
-        self.oneaway_atomidx=oneaways_atomidx
-        self.order=order
+        self.idx = idx
+        self.resids = resids
+        self.bystander_resids = bystanders
+        self.bystander_atomidx = bystanders_atomidx
+        self.oneaway_resids = oneaways
+        self.oneaway_atomidx = oneaways_atomidx
+        self.order = order
+
     def reverse(self):
-        self.idx=self.idx[::-1]
-        self.resids=self.resids[::-1]
-        self.bystander_resids=self.bystander_resids[::-1]
-        self.bystander_atomidx=self.bystander_atomidx[::-1]
-        self.oneaway_resids=self.oneaway_resids[::-1]
-        self.oneaway_atomidx=self.oneaway_atomidx[::-1]
+        self.idx = self.idx[::-1]
+        self.resids = self.resids[::-1]
+        self.bystander_resids = self.bystander_resids[::-1]
+        self.bystander_atomidx = self.bystander_atomidx[::-1]
+        self.oneaway_resids = self.oneaway_resids[::-1]
+        self.oneaway_atomidx = self.oneaway_atomidx[::-1]
+
     def __str__(self):
         return f'ReactionBond {self.idx} resids {self.resids} order {self.order} bystander-resids {self.bystander_resids} oneaway-resids {self.oneaway_resids} oneaway-atomidx {self.oneaway_atomidx}'
 
-ReactionBondList=list[ReactionBond]
+
+ReactionBondList = list[ReactionBond]

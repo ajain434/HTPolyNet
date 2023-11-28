@@ -9,7 +9,7 @@
 from HTPolyNet.stringthings import my_logger
 from HTPolyNet.__init__ import HTPOLYNET_VERSION
 
-banner_message="""
+banner_message = """
     HTPolyNet {:s}
     https://abramsgroup.github.io/HTPolyNet/
 
@@ -22,5 +22,7 @@ banner_message="""
     Supported in part by Grants W911NF-17-2-0227 
     and W911NF-12-R-0011 from the US Army Research Lab
     """.format(HTPOLYNET_VERSION)
+
+
 def banner(logf):
-    my_logger(banner_message,logf,fill=' ',just='<')
+    my_logger(banner_message, logf, fill=' ', just='<')

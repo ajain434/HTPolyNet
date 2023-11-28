@@ -10,6 +10,7 @@ import os
 import time
 from functools import wraps
 
+
 def countTime(fn):
     @wraps(fn)
     def measure_time(*args, **kwargs):
@@ -23,4 +24,5 @@ def countTime(fn):
             with open('time.txt', 'w') as f:
                 f.write(f"@timefn: {fn.__name__} took: {t2 - t1: .5f} s\n")
         return result
+
     return measure_time

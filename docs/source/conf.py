@@ -12,10 +12,11 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../../'))
 # dnw:
 #from HTPolyNet.__init__.py import HTPOLYNET_VERSION
-THIS_HTPOLYNET_VERSION='1.0.7.2'
+THIS_HTPOLYNET_VERSION = '1.0.7.2'
 # -- Project information -----------------------------------------------------
 
 project = 'HTPolyNet'
@@ -26,15 +27,19 @@ author = 'Cameron Abrams, Ming Huang'
 release = THIS_HTPOLYNET_VERSION
 version = THIS_HTPOLYNET_VERSION
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon', 'sphinx.ext.githubpages',
-    'sphinxcontrib.bibtex',]
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.coverage',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.githubpages',
+    'sphinxcontrib.bibtex',
+]
 # extensions.append('sphinx.ext.todo')
 # extensions.append('sphinx.ext.intersphinx')
 # extensions.append('sphinx.ext.mathjax')
