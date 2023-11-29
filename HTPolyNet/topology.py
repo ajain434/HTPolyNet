@@ -795,9 +795,11 @@ class Topology:
                           ) == len(data), 'Error: not enough data for new bond?'
                 bonddict = {k: [v] for k, v in zip(h, data)}
                 bdtoadd = pd.DataFrame(bonddict)
+
                 self.D['bonds'] = pd.concat(
-                    (self.D['bonds'], bdtoadd), ignore_index=True
-                )
+                    (self.D['bonds'].dropna(axis=1), bdtoadd),
+                    ignore_index=True)
+
                 # logger.info(f'add_bond:\n{bdtoadd.to_string()}')
                 logger.debug(f'just added {bonddict}')
                 if 'mol2_bonds' in self.D:
@@ -1434,7 +1436,7 @@ class Topology:
         :return: [ bonds ] dataframe extracted from system with all parameters
         :rtype: pandas.DataFrame
         """
-        bdf = self.D['bonds']
+        bdf = self.D['bonds'].dropna(axis=1)
         saveme = pd.DataFrame(columns=bdf.columns)
         for b in bonds.itertuples():
             ai, aj = idxorder((b.ai, b.aj))
@@ -1443,6 +1445,7 @@ class Topology:
                 (saveme, bdf[(bdf['ai'] == ai) & (bdf['aj'] == aj)].copy()),
                 ignore_index=True
             )
+
         # logger.info(f'saved bond override params\n{saveme.to_string()}')
         return saveme
 

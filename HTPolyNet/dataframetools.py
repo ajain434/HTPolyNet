@@ -6,6 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+import numpy as np
 import pandas as pd
 import logging
 
@@ -34,7 +35,7 @@ def get_row_attribute(df: pd.DataFrame, name, attributes):
     assert name_in_df, f'Attribute(s) {name} not found'
     c = [df[k] for k in ga]
     V = list(ga.values())
-    l = [True] * df.shape[0]
+    l = np.full(df.shape[0], True)
     for i in range(len(c)):
         l = (l) & (c[i] == V[i])
     return df[list(l)][name].values[0]
@@ -104,7 +105,8 @@ def set_row_attribute(df: pd.DataFrame, name, value, attributes):
     if name in df and len(ga) > 0:
         c = [df[k] for k in ga]
         V = list(ga.values())
-        l = [True] * df.shape[0]
+        # l = [True] * df.shape[0]
+        l = np.full(df.shape[0], True)
         for i in range(len(c)):
             l = (l) & (c[i] == V[i])
         cidx = [c == name for c in df.columns]
