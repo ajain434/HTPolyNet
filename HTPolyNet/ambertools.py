@@ -10,6 +10,7 @@ import logging
 import hashlib
 import shutil
 import parmed
+from openmol import charge_lib
 from HTPolyNet.command import Command
 from HTPolyNet.coordinates import Coordinates
 
@@ -52,23 +53,54 @@ def GAFFParameterize(
     topOut = f'{outputPrefix}.top'
     itpOut = f'{outputPrefix}.itp'
 
-    c = Command(
-        'antechamber',
-        j=4,
-        fi=input_structure_format,
-        fo='mol2',
-        c=chargemethod,
-        at='gaff',
-        i=new_structin,
-        o=mol2out,
-        pf='Y',
-        nc=0,
-        eq=1,
-        pl=10
-    )
-    c.run(quiet=False)
+    # Try using openmol charge lib.
+    try:
+        libpath = "../../../"
 
-    logger.debug(f'AmberTools> Antechamber generated {mol2out}')
+        # First calculate the atom types.
+        c = Command(
+            'antechamber',
+            j=4,
+            fi=input_structure_format,
+            fo='mol2',
+            at='gaff',
+            i=new_structin,
+            o=mol2out,
+            pf='Y',
+            nc=0,
+            eq=1,
+            pl=10
+        )
+        c.run(quiet=False)
+        charge_lib.calculate_charges(mol2out, mol2out, libpath)
+        logger.debug(f'OpenMol> Charge.lib generated {mol2out}')
+
+    except ValueError as err:
+        logger.error(
+            "Openmol charge.lib failed, falling back to antechamber.")
+        logger.error(err)
+
+        c = Command(
+            'antechamber',
+            j=4,
+            fi=input_structure_format,
+            fo='mol2',
+            c=chargemethod,
+            at='gaff',
+            i=new_structin,
+            o=mol2out,
+            pf='Y',
+            nc=0,
+            eq=1,
+            pl=10
+        )
+        c.run(quiet=False)
+
+        logger.debug(f'AmberTools> Antechamber generated {mol2out}')
+
+        # Load the new charges.
+        charge_lib.create_charge_file(mol2out, libpath)
+    
     c = Command('parmchk2', i=mol2out, o=frcmodout, f='mol2', s='gaff')
     c.run(quiet=False)
 
