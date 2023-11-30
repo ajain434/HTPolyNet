@@ -1436,7 +1436,7 @@ class Topology:
         :return: [ bonds ] dataframe extracted from system with all parameters
         :rtype: pandas.DataFrame
         """
-        bdf = self.D['bonds'].dropna(axis=1)
+        bdf = self.D['bonds'] #.dropna(axis=1)
         saveme = pd.DataFrame(columns=bdf.columns)
         for b in bonds.itertuples():
             ai, aj = idxorder((b.ai, b.aj))
