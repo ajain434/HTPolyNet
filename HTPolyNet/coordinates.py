@@ -1069,7 +1069,7 @@ class Coordinates:
         has_vel = 'velX' in self.A.columns
         with open(filename, 'w') as f:
             f.write(title + '\n')
-            f.write(f'{self.N:>5d}\n')
+            f.write(f'{self.A.shape[0]:>5d}\n') # Fix: self.N does not update
             # C-format: “%5i%5s%5s%5i%8.3f%8.3f%8.3f%8.4f%8.4f%8.4f”
             # Note that the gro atom number is not used; gromacs assigns atom indicies based
             # on counting input lines!  We will wrap the index so that it only has 5 digits.
