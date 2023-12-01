@@ -270,9 +270,9 @@ def gromacs_distance(
     if type(idf) == tuple:    # this is being called in parallel
         i, idf = idf    # unpack index and actual data frame
         pfx = _fnames[i]
-        logger.debug(
-            f'packet {i} using fname {pfx}; dataframe size {idf.shape[0]}'
-        )
+        # logger.debug(
+        #     f'packet {i} using fname {pfx}; dataframe size {idf.shape[0]}'
+        # )
     npair = idf.shape[0]
     # logger.debug(f'idf dtype {idf["ai"].dtype}')
     if npair == 0 or ('r' in idf and not force_recalculate):
