@@ -8,6 +8,7 @@
 """
 import logging
 import os
+import sys
 import argparse as ap
 import textwrap
 import shutil
@@ -59,7 +60,7 @@ def run(args):
         format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',
         level=loglevel_numeric
     )
-    console = logging.StreamHandler()
+    console = logging.StreamHandler(stream=sys.stdout)
     console.setLevel(logging.INFO)
     formatter = logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
