@@ -6,6 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+import os
 import logging
 import hashlib
 import shutil
@@ -55,7 +56,7 @@ def GAFFParameterize(
 
     # Try using openmol charge lib.
     try:
-        libpath = "../../../"
+        libpath = os.environ.get('CHARGE_LIB_PREF', "../../../charges")
 
         # First calculate the atom types.
         c = Command(
@@ -76,9 +77,9 @@ def GAFFParameterize(
         logger.debug(f'OpenMol> Charge.lib generated {mol2out}')
 
     except ValueError as err:
+        logger.error(err)
         logger.error(
             "Openmol charge.lib failed, falling back to antechamber.")
-        logger.error(err)
 
         c = Command(
             'antechamber',
