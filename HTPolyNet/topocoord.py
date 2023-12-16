@@ -1564,8 +1564,8 @@ class TopoCoord:
                 if not cid in tmp_dict:
                     tmp_dict[cid] = {}
                 tmp_dict[cid][cix] = gix
-        # logger.debug(f'{list_name} tmp_dict item count: {len(tmp_dict)}')
-        # logger.debug(f'{tmp_dict}')
+        logger.debug(f'{list_name} tmp_dict item count: {len(tmp_dict)}')
+        logger.debug(f'{tmp_dict}')
         if tmp_dict:
             consec_test = [a in tmp_dict for a in range(len(tmp_dict))]
             # logger.debug(f'{consec_test}')

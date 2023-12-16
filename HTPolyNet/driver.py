@@ -98,7 +98,8 @@ def parameterize(args):
     logging.basicConfig(
         filename=args.diag,
         filemode='w',
-        format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',
+        # format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',
+        format='%(levelname)s %(name)s.%(funcName)s> %(message)s',
         level=loglevel_numeric
     )
     console = logging.StreamHandler(stream=sys.stdout)

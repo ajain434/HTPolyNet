@@ -409,7 +409,13 @@ class Molecule:
 
         # set chain, chain_idx
         TC.idx_lists['chain'] = []
+
+        # Take only the unique atoms
+        # fixes: chain idx too high when symmetric atoms are defined
+        idx = list(set(idx))
+
         pairs = product(idx, idx)
+
         for i, j in pairs:
             if i < j:
                 iname = TC.get_gro_attribute_by_attributes(
@@ -440,7 +446,7 @@ class Molecule:
                             f'In molecule {self.name}, cannot identify bonded reactive head and tail atoms\nAssuming {j} is head and {i} is tail'
                         )
                         entry = [j, i]
-                    # logger.debug(f'Adding {entry} to chainlist of {self.name}')
+                    logger.debug(f'Adding {entry} to chainlist of {self.name}')
                     TC.idx_lists['chain'].append(entry)
         TC.reset_grx_attributes_from_idx_list('chain')
         # set cycle, cycle_idx
