@@ -232,9 +232,9 @@ _GromacsTopologyHashables_ = {
 
 _GromacsTopologyDirectiveDefaults_ = {
     'system': ['A_generic_system'],
-    'molecules': ['None', 1],
-    'moleculetype': ['None', 3],
-    'defaults': [1, 2, 'yes', 0.5, 0.83333333]
+    'molecules': ['THS', 1],
+    'moleculetype': ['THS', 3],
+    'defaults': [1, 2, 'yes', 0.5, 0.83333333]  # for amber, won't work with others
 }
 
 
