@@ -1590,9 +1590,9 @@ class TopoCoord:
         chainlists = self.idx_lists['chain']
         if len(chainlists) == 0:
             return
-        # logger.debug(f'pre {msg} chainlists')
-        # for i,c in enumerate(chainlists):
-        #     logger.debug(f'  {i} {c}')
+        logger.debug(f'pre {msg} chainlists')
+        for i,c in enumerate(chainlists):
+            logger.debug(f'  {i} {c}')
         for b in new_bond_recs:
             aidx, bidx = b[0], b[1]
             ar = self.get_gro_attribute_by_attributes(
@@ -1603,7 +1603,7 @@ class TopoCoord:
             )
             if ar == br:
                 continue    # ignore intramolecular bonds
-            # logger.debug(f'chainlist_update pair {aidx} {bidx}')
+            logger.debug(f'chainlist_update pair {aidx} {bidx}')
             ac = self.get_gro_attribute_by_attributes(
                 'chain', {'globalIdx': aidx}
             )
@@ -1615,8 +1615,8 @@ class TopoCoord:
                 # neither of these newly bonded atoms is already in a chain, so
                 # there is no possibility that this new bond can join two chains.
                 continue
-            # logger.debug(f'chain of bidx {bidx}: {chainlists[bc]}')
-            # logger.debug(f'chain of aidx {aidx}: {chainlists[ac]}')
+            logger.debug(f'chain of bidx {bidx}: {chainlists[bc]}')
+            logger.debug(f'chain of aidx {aidx}: {chainlists[ac]}')
             aci = self.get_gro_attribute_by_attributes(
                 'chain_idx', {'globalIdx': aidx}
             )
@@ -1682,7 +1682,7 @@ class TopoCoord:
                     ) for x in c
                 ]
             )
-        # logger.debug(f'post {msg} chains {self.idx_lists["chain"]} {cnms}')
+        logger.debug(f'post {msg} chains {self.idx_lists["chain"]} {cnms}')
 
     def makes_cycle(self, aidx, bidx):
         """makes_cycle checks the current chain index lists to see if a bond between aidx and bidx (global atom indices) would generate a C-C' cycle
