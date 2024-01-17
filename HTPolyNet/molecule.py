@@ -1041,7 +1041,7 @@ class Molecule:
         for i, r in bdf.iterrows():
             aname, bname = [
                 TC.get_gro_attribute_by_attributes('atomName', {'globalIdx': x})
-                for x in [r.ai, r.rj]
+                for x in [r.ai, r.aj]
             ]
             logger.debug(
                 f'generating {self.name} bond {r.ri}:{aname}:{r.ai}-{r.rj}:{bname}:{r.aj} order {r.order}'
