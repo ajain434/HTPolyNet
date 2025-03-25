@@ -1,20 +1,20 @@
 integrator  = md
 nsteps      = 50000
-dt          = 0.002
-constraints = all-bonds
+dt          = 0.001
+; constraints = all-bonds
 nstlist     = 10
-rlist       = 1.0
-rcoulomb    = 1.0
-rvdw        = 1.0
+;rlist       = 0.5
+;rcoulomb    = 0.5
+;rvdw        = 1.2
 coulombtype     = PME
 vdw_type	= cut-off
 fourierspacing  = 0.12
 pme_order       = 4
 ewald_rtol      = 1e-5
 optimize_fft    = yes
-tcoupl      = Berendsen             ; Berendsen thermostat
+tcoupl      = V-rescale            ; Berendsen thermostat
 tc-grps     = System
-tau_t       = 0.1
+tau_t       = 1.0
 ref_t       = 300
 pbc     = xyz
 nstcomm         = 10
@@ -22,6 +22,17 @@ comm-mode       = Linear
 comm-grps       = System 
 table-extension	= 1
 periodic-molecules = yes
+
+; CHARMM
+constraints = h-bonds
+cutoff-scheme = Verlet
+vdw-modifier = force-switch
+rlist = 1.2
+rvdw = 1.2
+rvdw-switch = 1.0
+;coulombtype = PME
+rcoulomb = 1.2
+DispCorr = no
 
 
 nstxout                  = 5000

@@ -629,9 +629,11 @@ class TopoCoord:
         self.Coordinates = Coordinates.read_gro(
             grofilename, wrap_coords=wrap_coords
         )
+        
         if preserve_box:
             self.Coordinates.box = savebox
-        # logger.debug(f'box: {self.Coordinates.box}')
+        logger.debug(f'box: {self.Coordinates.box}')
+        logger.debug(f'coordinates: {self.Coordinates.A}')
 
     def read_mol2(self, mol2filename, **kwargs):
         """read_mol2 Creates a new Coordinates member by reading from a SYBYL-style MOL2 file.
@@ -2078,11 +2080,21 @@ class TopoCoord:
             logger.info(
                 f'Current box side lengths: {box[0]:.3f} nm x {box[1]:.3f} nm x {box[2]:.3f} nm'
             )
-            gmx_energy_trace(
+            trace_data = gmx_energy_trace(
                 f'{deffnm}-{ens}', ['Density'],
                 report_averages=True,
                 **gromacs_dict
             )
+            if trace_data.loc[trace_data.index[-1], "Density"] < 50.0:
+                repeat = 2
+                logger.info(f"System not dense enough (D = {trace_data.index[-1]}). Adding {repeat} repeats.")
+            elif trace_data.loc[trace_data.index[-1], "Density"] < 100.0:
+                repeat = 2
+                logger.info(f"System not dense enough (D = {trace_data.index[-1]}). Adding {repeat} repeats.")
+            elif trace_data.loc[trace_data.index[-1], "Density"] < 200.0:
+                repeat = 1
+                logger.info(f"System not dense enough (D = {trace_data.index[-1]}). Adding {repeat} repeats.")
+
         for rep in range(repeat):
             logger.info(f'Repeat {rep+1} out of {repeat}')
             this_deffnm = f'{deffnm}-repeat-{rep+1}-{ens}'
@@ -2155,6 +2167,30 @@ class TopoCoord:
         print(pdf.sort_values(by='dz').head(3).to_string())
         self.write_top('checked.top')
 
+    def move_new_pairs_closer_together(self, new_pairs_df, max_dist=0.5):
+        """move_new_pairs_closer_together moves new pairs closer together
+
+        :param new_pairs: 
+        :type new_pairs: list
+        :param max_dist: maximum distance, defaults to 0.5
+        :type max_dist: float, optional
+        """
+        moved_atoms_list = []
+        C = self.Coordinates
+        for i, r in new_pairs_df.iterrows():
+            ai, aj = min([r.ai, r.aj]), max([r.ai, r.aj])
+            D = C.rij_hat(ai, aj)
+            d = np.linalg.norm(D)
+            if d > max_dist:
+                C.move_atom(ai, -0.25 * D)
+                C.move_atom(aj, 0.25 * D)
+                logger.debug(f'moved {ai} {aj} closer together. d initial = {d}, D initial = {D}. New distance {C.rij(ai, aj)}')
+
+        logger.debug("New pair distances...")
+        for i, r in new_pairs_df.iterrows():
+            ai, aj = min([r.ai, r.aj]), max([r.ai, r.aj])
+            d = C.rij(ai, aj)
+            logger.debug(f'{ai} {aj} distance = {d}')
 
 def find_template(BT: BondTemplate, moldict):
     """find_template searches the dictionary of available molecules to identify a bond template that matches the passed-in template, returning the corresponding template molecule and reaction-bond

@@ -158,3 +158,6 @@ def GAFFParameterize(
     except Exception as m:
         logger.error('Unspecified parmed error')
         raise parmed.exceptions.GromacsError(m)
+    
+    logger.debug(f"good generation of {outputPrefix} amber parameters")
+

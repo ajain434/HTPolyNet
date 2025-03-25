@@ -491,6 +491,17 @@ class Coordinates:
         Rij = self.mic(ri - rj, pbc)
         return np.sqrt(Rij.dot(Rij))
 
+    def rij_hat(self, i, j, pbc=[1, 1, 1]):
+        """rij_hat computes displacement pointing from atom i to atom j
+
+        :return: vector pointing from i to j
+        :rtype: np.ndarray(3,float)
+        """
+        rij = self.rij(i, j, pbc)
+        ri = self.get_R(i)
+        rj = self.get_R(j)
+        return self.mic(ri - rj, pbc)
+
     def mic(self, r, pbc):
         """mic applies minimum image convention to displacement vector r
 
@@ -1203,6 +1214,7 @@ class Coordinates:
                         formatters=atomformatters
                     )
                 )
+                logger.debug(f"acopy: {acopy}")
                 f.write('\n')
                 f.write('@<TRIPOS>BOND\n')
                 if not bondsDF.empty:
@@ -1242,3 +1254,22 @@ class Coordinates:
                     )
                 )
                 f.write('\n')
+    
+    def move_atom(self, atom_id, new_position):
+        """
+        Moves an atom to a new position.
+
+        :param atom_id: The global index of the atom to move
+        :type atom_id: int
+        :param new_position: The new position as a tuple or list of (x, y, z) coordinates
+        :type new_position: tuple or list
+        :raises ValueError: If the atom_id does not exist
+        """
+        if atom_id not in self.A['globalIdx'].values:
+            raise ValueError(f"Atom with globalIdx {atom_id} does not exist.")
+
+        if len(new_position) != 3:
+            raise ValueError("New position must be a 3-element tuple or list representing (x, y, z).")
+
+        # Update the position in the DataFrame
+        self.A.loc[self.A['globalIdx'] == atom_id, ['posX', 'posY', 'posZ']] = new_position

@@ -7,8 +7,8 @@ nstlist		= 1;
 cutoff-scheme	= Verlet;
 ns_type		= grid;
 coulombtype	= PME;
-rcoulomb	= 1.0;
-rvdw		= 1.0;
+rcoulomb	= 0.5;
+rvdw		= 0.5;
 pbc		= xyz;
 periodic-molecules = yes
 

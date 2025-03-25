@@ -5,17 +5,17 @@ gen-temp    = 300
 nsteps      = 20000
 dt          = 0.001
 constraints = none
-nstlist     = 30
-rlist       = 0.9
-rcoulomb    = 0.9 
-rvdw        = 0.9
-coulombtype     = PME
+nstlist     = 10
+rlist       = 0.5
+rcoulomb    = 0.5 
+rvdw        = 0.5
+coulombtype     = cutoff ; original PME
 vdw_type	= cut-off
 fourierspacing  = 0.12
 pme_order       = 4
 ewald_rtol      = 1e-5
 optimize_fft    = yes
-tcoupl      = Berendsen             ; Berendsen thermostat
+tcoupl      = V-rescale            ; Berendsen thermostat
 tc-grps     = System
 tau_t       = 0.1
 ref_t       = 300
@@ -36,4 +36,6 @@ nstenergy                = 500
 
 nstxout-compressed       = 500
 compressed-x-precision   = 100
+
+;continuation = yes ; added 
 

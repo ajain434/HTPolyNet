@@ -127,6 +127,21 @@ class CureController:
             'nsteps': 2000
         }
     ]
+
+    relax_equilibration_sequence = [
+        {
+            'ensemble': 'min'
+        }, {
+            'ensemble': 'nvt',
+            'temperature': 400,
+            'nsteps': 1000
+        }, {
+            'ensemble': 'npt',
+            'temperature': 400,
+            'pressure': 10,
+            'nsteps': 2000
+        }
+    ]
     curedict_defaults = {
         'output': {
             'bonds_file': 'bonds.csv'
@@ -134,7 +149,7 @@ class CureController:
         'controls':
             {
                 'max_conversion_per_iteration': 1.0,
-                'search_radius': 0.5,
+                'search_radius': 0.50,
                 'radial_increment': 0.05,
                 'late_threshold': 0.85,
                 'max_iterations': 100,
@@ -156,12 +171,12 @@ class CureController:
                 'nstages': 6,
                 'increment': 0.0,
                 'cutoff_pad': 0.2,
-                'equilibration': default_equilibration_sequence
+                'equilibration': relax_equilibration_sequence
             },
         'equilibrate':
             {
-                'temperature': 300,
-                'pressure': 1,
+                'temperature': 500,
+                'pressure': 15,
                 'nsteps': 50000,
                 'ensemble': 'npt'
             },
@@ -217,6 +232,7 @@ class CureController:
         st.max_radidx = int(
             (st.max_search_radius - d['search_radius']) / d['radial_increment']
         )
+        logger.debug(f"max radius: {st.max_search_radius}")
 
     @cp.enableCheckpoint
     def do_iter(
@@ -374,7 +390,8 @@ class CureController:
         # raw_bdf=self.make_candidates(TC,RL,MD,...)
         ''' execute search radius updating until at lesast one bond is identified '''
         nbonds = 0
-        while nbonds == 0 and self.state.current_radidx < self.state.max_radidx:
+        # logger.debug(f"max radius {st.max_search_radius}")
+        while nbonds == 0 and self.state.current_radidx <= self.state.max_radidx:
             # test_bdf=raw_bdf[raw_bdf['r']<self.current_radius]
             # result_bdf=self.apply_filters(TC,RL,MD,...)
             nbdf = self._searchbonds(
@@ -488,6 +505,8 @@ class CureController:
         )
         TC.add_length_attribute(bonds_df, attr_name='initial_distance')
         TC.add_length_attribute(pairs_df, attr_name='initial_distance')
+        if TC.atom_count() <= 350:
+            TC.move_new_pairs_closer_together(pairs_df)
         self._register_bonds(
             bonds_df, pairs_df, f'{opfx}-bonds.csv', bonds_are='unrelaxed'
         )
@@ -642,7 +661,7 @@ class CureController:
         logger.info(
             f'Step "{str(self.state.step)}" initiated on {nbdf.shape[0]} distance{ess} (max {maxL:.3f} nm)'
         )
-        roptions = [self.dicts['gromacs']['rdefault'], maxL]
+        roptions = [self.dicts['gromacs']['rdefault']]#, maxL]
         if mode == 'drag':
             TC.add_restraints(nbdf, typ=6)
             logger.info('     Stage  Max-distance (nm)')
@@ -653,13 +672,21 @@ class CureController:
             logger.debug(
                 f'1-4 distances lengths avg/min/max: {pmeanL:.3f}/{pminL:.3f}/{pmaxL:.3f}'
             )
-            roptions.append(pmaxL)
+            logger.debug(f'bounding box {TC.Coordinates.box}')
+            logger.debug(f'bounding box half diagonal {np.sqrt(np.sum(np.power(np.diag(TC.Coordinates.box), 2))) / 2}')
+            logger.debug(f'bounding box hlaf len: {np.diag(TC.Coordinates.box)[0] /2}')
+            roptions.append(min(pmaxL, np.sqrt(np.sum(np.power(np.diag(TC.Coordinates.box), 2))) / 2, np.diag(TC.Coordinates.box)[0]/2)) # to avoid for 
             logger.info('     Stage  Max-distance (nm)  Max-1-4-distance (nm)')
-        rcommon = max(roptions)
+        max_cutoff = 1.2  # Example maximum cutoff in nm
+        logger.debug(f'roptions {roptions}, max cutoff {max_cutoff}')
+        rcommon = min(max(roptions), max_cutoff)
+        # rcommon = max(roptions)
+
         for stg_dict in d['equilibration']:
             ensemble = stg_dict['ensemble']
             impfx = f'{statename}-{ensemble}'    # e.g., drag-min, drag-nvt, drag-npt
             pfs.checkout(f'mdp/{impfx}.mdp')
+            logger.debug(f"rcommon: {rcommon}")
             mdp_mods_dict = {
                 'rvdw': rcommon,
                 'rcoulomb': rcommon,
@@ -676,6 +703,7 @@ class CureController:
                 )
             if ensemble == 'npt':
                 mdp_mods_dict['ref_p'] = stg_dict['pressure']
+                mdp_mods_dict['gen-vel'] = 'no'
             mdp_modify(
                 f'{impfx}.mdp',
                 mdp_mods_dict,
@@ -708,8 +736,9 @@ class CureController:
                 ensemble = stg_dict['ensemble']
                 impfx = f'{statename}-{ensemble}'    # e.g., drag-min, drag-nvt, drag-npt
                 TC.grompp_and_mdrun(
-                    out=f'{stagepfx}-{ensemble}', mdp=f'{impfx}', **gromacs_dict
+                    out=f'{stagepfx}-{ensemble}', mdp=f'{impfx}', maxwarn = 10,**gromacs_dict
                 )
+
                 # logger.debug(f'{TC.files["gro"]}')
             TC.restore_bond_parameters(saveT)
             TC.add_length_attribute(nbdf, attr_name='current_lengths')
@@ -727,7 +756,33 @@ class CureController:
                 logger.debug(
                     f'1-4 distances lengths avg/min/max: {pmeanL:.3f}/{pminL:.3f}/{pmaxL:.3f}'
                 )
+                
+
                 logger.info(f'{i+1:>10d}  {maxL:>17.3f}  {pmaxL:>21.3f}')
+                # Set new roptions  
+                roptions.pop() 
+                # roptions.pop() 
+
+                # roptions.append(min(pmaxL, np.sqrt(np.sum(np.power(np.diag(TC.Coordinates.box), 2))) / 2))
+                roptions.append(min(pmaxL, np.sqrt(np.sum(np.power(np.diag(TC.Coordinates.box), 2))) / 2, np.diag(TC.Coordinates.box)[0]/2)) # to avoid for 
+                
+                rcommon = min(max(roptions), max_cutoff)
+                # Remodify mdp with updated cutoffs
+                mdp_mods_dict = {
+                    'rvdw': rcommon,
+                    'rcoulomb': rcommon,
+                    'rlist': rcommon
+                }
+                logger.debug(f"updated rcommon: {rcommon}")
+                
+                for stg_dict in d['equilibration']:
+                    ensemble = stg_dict['ensemble']
+                    temp_impfx = f'{statename}-{ensemble}' 
+                    mdp_modify(
+                        f'{temp_impfx}.mdp',
+                        mdp_mods_dict,
+                    )
+                    logger.debug(f"updated mdp: {mdp_mods_dict}")
             self.state._to_yaml()
         if mode == 'drag':
             TC.remove_restraints(self.bonds_df)
@@ -750,6 +805,7 @@ class CureController:
         stage=reaction_stage.cure,
         abs_max=0,
         apply_probabilities=False,
+        add_free_radical = False,
         reentry=False
     ):
         """_searchbonds manages the search for bonds
@@ -771,10 +827,26 @@ class CureController:
         :return: the dataframe of proposed bonds
         :rtype: pd.DataFrame
         """
+
+        search_bonds_count = 0
+        n_bonds = 0
+        # During curing, search for bound within the contraints of the current free radicals, give up after 5 attempts
+        # while n_bonds < 2 and search_bonds_count < 2:
+        logger.debug(f'Searching for bonds, attempt {search_bonds_count}')
         adf = TC.gro_DataFrame('atoms')
+
+        # Assign free radicals if the column doesn't exist in adf
+        if 'free_radical' not in adf.columns:
+            adf = self._assign_free_radicals(adf, TC)
+
+        # Assign an additional free radical if the bond search is called again
+        # if search_bonds_count > 0:
+        #     logger.debug('Adding additional photoinitiator')
+        #     adf = self._assign_free_radicals(adf, TC, num_radicals=2)
+
         gro = TC.files['gro']
         ncpu = self.dicts['controls']['ncpu']
-        if stage == reaction_stage.cure:
+        if stage == reaction_stage.cure and search_bonds_count == 0:
             TC.linkcell_initialize(
                 self.state.current_radius, ncpu=ncpu, force_repopulate=reentry
             )
@@ -810,25 +882,25 @@ class CureController:
                     assert aresname == bresname, f'Error: capping reaction {R.name} lists a bond whose atoms are in different residues'
 
                 Aset = raset[(raset['atomName'] == aname) &
-                             (raset['resName'] == aresname) &
-                             (raset['z'] == az) &
-                             (raset['reactantName'] == areactantname_template)]
+                            (raset['resName'] == aresname) &
+                            (raset['z'] == az) &
+                            (raset['reactantName'] == areactantname_template)]
                 Bset = raset[(raset['atomName'] == bname) &
-                             (raset['resName'] == bresname) &
-                             (raset['z'] == bz) &
-                             (raset['reactantName'] == breactantname_template)]
+                            (raset['resName'] == bresname) &
+                            (raset['z'] == bz) &
+                            (raset['reactantName'] == breactantname_template)]
                 logger.debug(f'Aset {Aset.shape[0]} atoms')
                 logger.debug(f'Bset {Bset.shape[0]} atoms')
                 alist = list(
                     zip(
                         Aset['globalIdx'].to_list(), Aset['resNum'].to_list(),
-                        Aset['molecule'].to_list()
+                        Aset['molecule'].to_list(), Aset['free_radical'].to_list()
                     )
                 )
                 blist = list(
                     zip(
                         Bset['globalIdx'].to_list(), Bset['resNum'].to_list(),
-                        Bset['molecule'].to_list()
+                        Bset['molecule'].to_list(), Bset['free_radical'].to_list()
                     )
                 )
                 all_possible_pairs = list(product(alist, blist))
@@ -838,9 +910,11 @@ class CureController:
                         'ai': [int(x[0][0]) for x in all_possible_pairs],
                         'ri': [int(x[0][1]) for x in all_possible_pairs],
                         'mi': [int(x[0][2]) for x in all_possible_pairs],
+                        'fi': [x[0][3] for x in all_possible_pairs],
                         'aj': [int(x[1][0]) for x in all_possible_pairs],
                         'rj': [int(x[1][1]) for x in all_possible_pairs],
                         'mj': [int(x[1][2]) for x in all_possible_pairs],
+                        'fj': [x[1][3] for x in all_possible_pairs],
                         'prob': [prob for _ in all_possible_pairs],
                         'reactantName': [R.product for _ in all_possible_pairs],
                         'order': [order for _ in all_possible_pairs]
@@ -849,7 +923,10 @@ class CureController:
                 if stage == reaction_stage.cure:
                     # exclude atom pairs that have same resid or molid
                     idf = idf[(idf['ri'] != idf['rj']) &
-                              (idf['mi'] != idf['mj'])].copy()
+                            (idf['mi'] != idf['mj'])].copy()
+                    # idf = idf[(idf['fi'] == True)].copy()
+                    logger.debug("postfilter")
+                    logger.debug(idf)
                     logger.debug(
                         f'Examining {idf.shape[0]} bond-candidates of order {order}'
                     )
@@ -877,7 +954,7 @@ class CureController:
                             f'{idf.shape[0]} bond-candidate length{ess} avg/min/max: {idf["r"].mean():0.3f}/{idf["r"].min():0.3f}/{idf["r"].max():0.3f}'
                         )
                         idf = idf[idf['r'] < self.state.current_radius
-                                 ].copy().reset_index(drop=True)
+                                ].copy().reset_index(drop=True)
                         ess = '' if idf.shape[0] != 1 else 's'
                         logger.debug(
                             f'{idf.shape[0]} bond-candidate{ess} with lengths below {self.state.current_radius} nm'
@@ -895,7 +972,7 @@ class CureController:
                             logger.debug(f'Bond-candidate test outcomes:')
                             for k in bondtestoutcomes:
                                 bondtestoutcomes[k] = idf[idf['result'] == k
-                                                         ].shape[0]
+                                                        ].shape[0]
                                 logger.debug(
                                     f'   {str(k)}: {bondtestoutcomes[k]}'
                                 )
@@ -907,13 +984,16 @@ class CureController:
                     )
                 if not idf.empty:
                     bdf = pd.concat((bdf, idf), ignore_index=True)
+        n_bonds = bdf.shape[0]
+        # search_bonds_count += 1
+
         # logger.debug('Filtered (by single-bond tests) bonds:')
         # for ln in bdf.to_string().split('\n'):
         #     logger.debug(ln)
 
         if stage == reaction_stage.cure and bdf.shape[0] > 0:
             bdf = bdf.sort_values('r', axis=0,
-                                  ignore_index=True).reset_index(drop=True)
+                                ignore_index=True).reset_index(drop=True)
             bdf['allowed'] = [True for x in range(bdf.shape[0])]
             unique_atomidx = set(bdf.ai.to_list()).union(set(bdf.aj.to_list()))
             unique_resids = set(bdf.ri.to_list()).union(set(bdf.rj.to_list()))
@@ -985,4 +1065,98 @@ class CureController:
         if stage == reaction_stage.cure:
             TC.linkcell_cleanup()
 
+        if stage == reaction_stage.cure:
+            if bdf.shape[0] > 0:
+                self._propograte_free_radicals(adf, bdf)
+                TC.Coordinates.A = adf
+
         return bdf
+
+    def _assign_free_radicals(self, adf: pd.DataFrame, TC: TopoCoord, num_radicals : int = 2):
+        """
+        Assign free radicals to C1 or C3 atoms or their equivalents in each molecule.
+        
+        :param molecule: The molecule object containing reaction bonds
+        :type molecule: Molecule
+        """
+        # Iragcure photoinitiator
+        photo_mass = 418.46 # g/mol
+        photo_wt_pct = 0.01
+
+        # Get the mass of system
+        mass = TC.Topology.total_mass() #g/mol  
+
+        # Get the number of photoinitiator molecules
+        photo_mol = (photo_wt_pct * mass) / photo_mass
+        # Get ratio of free radicals to molecules to determine initiation probability
+        num_sys_molecules = adf['molecule'].max()
+        radical_prob = 2*photo_mol / num_sys_molecules
+
+        logger.debug(f'Number of photoinitiator molecules: {photo_mol}')
+        logger.debug(f'Number of system molecules: {num_sys_molecules}')
+        logger.debug(f'Radical probability: {radical_prob}')
+        
+        if 'free_radical' not in adf.columns:
+            head_indexes = adf[(adf['atomName'] == 'C1') | (adf['atomName'] == 'C3')]['globalIdx'].to_list()
+        else:
+            head_indexes = adf[((adf['atomName'] == 'C1') | (adf['atomName'] == 'C3')) & (adf['free_radical'] == False)]['globalIdx'].to_list()
+        
+        logger.debug(f'Head indexes: {head_indexes}')
+        if len(head_indexes) == 0:
+            logger.debug(adf[(adf['atomName'] == 'C1') | (adf['atomName'] == 'C3')][['globalIdx', 'molecule', 'resNum', 'resName' ,'atomName']].head(100))
+            raise ValueError('Error: No avaiable C1 or C3 atoms found in the system')
+
+        if len(head_indexes) < num_radicals:
+            logger.debug(adf[(adf['atomName'] == 'C1') | (adf['atomName'] == 'C3')][['globalIdx', 'molecule', 'resNum', 'resName' ,'atomName']].head(100))
+            raise ValueError('Error: Not enough C1 or C3 atoms to initialize free radicals')
+        # selected_indexes = np.random.choice(head_indexes, np.ceil(2*photo_mol).astype(int), replace=False)
+        selected_indexes = np.random.choice(head_indexes, num_radicals, replace=False)
+        logger.debug(f'Selected indexes for free radicals: {selected_indexes}')
+
+        # Assign free radicals to the selected indexes, index = global_index - 1
+        for index in head_indexes:
+            adf.at[index - 1, 'free_radical'] = False
+        for index in selected_indexes:
+            adf.at[index - 1, 'free_radical'] = True
+            logger.debug(f'Initialized a free radical on Atom {adf.at[index, "globalIdx"]}')
+
+        return adf
+    
+    def _propograte_free_radicals(self, adf, bdf : pd.DataFrame):
+        """
+        Propograte free radicals for bonds that formed. Move from the C1 of the original radical to the C1/C3 of the bonded C2/C4
+        
+        :param bdf: The bonds dataframe
+        :type bdf: pd.DataFrame
+        """
+        logger.debug(bdf.to_string())
+        for index, bond in bdf.iterrows():
+            if bond['fi'] == True:
+                bdf.at[index, 'fi'] = False
+                bdf.at[index, 'fj'] = False
+
+                # Find the residue of j atom
+                j_res = bond['rj']
+                i_res = bond['ri']
+
+                # In atom list find the C1/C3 atom of the i residue
+                if adf.loc[adf['globalIdx'] == bond['ai'], "atomName"].values[0] == 'C1':
+                    i_atom_radical = 'C1'
+                elif adf.loc[adf['globalIdx'] == bond['ai'], "atomName"].values[0] == 'C3':
+                    i_atom_radical = 'C3'
+
+                adf.loc[(adf['resNum'] == i_res) & (adf['atomName'] == i_atom_radical), 'free_radical'] = False
+                
+
+                # In atom list find the C1/C3 atom of the j residue, C1 if the name of j is C2, C3 if the name of j is C4
+                if adf.loc[adf['globalIdx'] == bond['aj'], "atomName"].values[0] == 'C2':
+                    j_atom_radical = 'C1'
+                elif adf.loc[adf['globalIdx'] == bond['aj'], "atomName"].values[0] == 'C4':
+                    j_atom_radical = 'C3'
+                else:
+                    raise ValueError(f'Error: Atom {bond["aj"]} is not a C2 or C4 atom')
+
+                adf.loc[(adf['resNum'] == j_res) & (adf['atomName'] == j_atom_radical), 'free_radical'] = True
+
+        logger.debug(adf[adf['free_radical'] == True])
+        return adf, bdf

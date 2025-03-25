@@ -127,3 +127,7 @@ def set_gmx_preferences(parmdict):
     gmx_options = _SW_.gmx_options
     mdrun = _SW_.mdrun
     mdrun_single_molecule = _SW_.mdrun_single_molecule
+
+# Add these lines to define CHARMM executable
+charmm = os.environ.get('CHARMM_EXE', 'charmm')
+cgenff = os.environ.get('CGENFF_EXE', 'cgenff')

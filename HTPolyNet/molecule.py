@@ -19,6 +19,7 @@ from HTPolyNet.topocoord import TopoCoord
 from HTPolyNet.bondtemplate import BondTemplate, BondTemplateList, ReactionBond, ReactionBondList
 from HTPolyNet.coordinates import dfrotate, GRX_ATTRIBUTES
 from HTPolyNet.ambertools import GAFFParameterize
+from HTPolyNet.cgenff import CGenFFParameterize
 from HTPolyNet.gromacs import mdp_modify, gro_from_trr
 from HTPolyNet.command import Command
 from HTPolyNet.reaction import Reaction, ReactionList, reaction_stage, generate_product_name, reactant_resid_to_presid
@@ -391,7 +392,9 @@ class Molecule:
                     for bn in sr:
                         if bn == an:
                             continue
-                        # logger.debug(f'{self.name}: setting z for {bn}')
+                        logger.debug(f'{self.name}: setting z for {bn}')
+                        logger.debug("Printing coordinates...")
+                        logger.debug(TC.Coordinates.A.to_string())
                         idx.append(
                             TC.get_gro_attribute_by_attributes(
                                 'globalIdx', {
@@ -465,31 +468,47 @@ class Molecule:
             )
         return rval
 
-    def parameterize(self, outname='', input_structure_format='mol2', **kwargs):
-        """parameterize manages GAFF parameterization of this molecule
-
-        :param outname: output file basename, defaults to ''
-        :type outname: str, optional
-        :param input_structure_format: input structure format, defaults to 'mol2' ('pdb' is other possibility)
-        :type input_structure_format: str, optional
+    def parameterize(self, outname='', input_structure_format='mol2', force_field='cgenff', **kwargs):
+        """parameterize handles molecular parameterization using either CGenFF or GAFF
+        
+        :param outname: output filename prefix
+        :param input_structure_format: format of input structure file
+        :param force_field: which force field to use ('cgenff' or 'gaff'), defaults to 'cgenff'
+        :raises ValueError: if force_field is not recognized
         """
-        assert os.path.exists(
-            f'{self.name}.{input_structure_format}'
-        ), f'Cannot parameterize molecule {self.name} without {self.name}.{input_structure_format} as input'
-        if outname == '':
-            outname = f'{self.name}'
-        GAFFParameterize(
-            self.name,
-            outname,
-            input_structure_format=input_structure_format,
-            **kwargs
-        )
+        if not outname:
+            outname = self.name
+            
+        logger.info(f'Parameterizing {self.name} using {force_field}')
+        
+        if force_field.lower() == 'cgenff':
+            # Use CGenFF
+            CGenFFParameterize(
+                self.name, 
+                outname,
+                input_structure_format=input_structure_format,
+                **kwargs
+            )
+        elif force_field.lower() == 'gaff':
+            # Use GAFF
+            GAFFParameterize(
+                self.name, 
+                outname,
+                input_structure_format=input_structure_format,
+                **kwargs
+            )
+        else:
+            raise ValueError(f"Unrecognized force field '{force_field}'. Must be either 'cgenff' or 'gaff'")
+        
+        # Use existing load_top_gro method to load the files
         self.load_top_gro(
             f'{outname}.top',
             f'{outname}.gro',
             mol2filename=f'{outname}.mol2',
             wrap_coords=False
         )
+        
+        logger.info(f'Parameterization of {self.name} completed')
 
     def minimize(self, outname='', **kwargs):
         """minimize manages invocation of vacuum minimization
@@ -590,7 +609,7 @@ class Molecule:
             # logger.debug(f'\n{self.TopoCoord.Coordinates.A.to_string()}')
             # logger.debug(f'composite prebonded molecule in box {self.TopoCoord.Coordinates.box}')
             self.TopoCoord.write_mol2(
-                filename=f'{self.name}-prebonding.mol2', molname=self.name
+                filename=f'{self.name}-prebonding.mol2', molname=self.name, element_names_as_types=True
             )
             self.set_sequence_from_coordinates()
             # bonds_to_make=list(yield_bonds(R,self.TopoCoord,resid_mapper))
@@ -610,7 +629,7 @@ class Molecule:
             #     pfs.checkout(f'molecules/inputs/{self.name}.{isf}')
             # else:
             self.TopoCoord.write_mol2(
-                filename=f'{self.name}.mol2', molname=self.name
+                filename=f'{self.name}.mol2', molname=self.name, element_names_as_types=True
             )
             if not do_parameterization:
                 self.TopoCoord.write_gro(f'{self.name}.gro', grotitle=self.name)
@@ -828,6 +847,10 @@ class Molecule:
         temp2inst = {}
         # logger.debug(f'inst resids from {[i_resNum,j_resNum,*inst_bystanders]}')
         # logger.debug(f'temp resids from {[temp_iresid,temp_jresid,*temp_bystanders]}')
+        # Add debug logging
+        logger.debug(f"Template atoms: {tempdf['globalIdx'].tolist()}")
+        logger.debug(f"Instance atoms: {instdf['globalIdx'].tolist()}")
+    
         for inst, temp in zip(
             [
                 *inst_resids, *inst_bystander_resids[0],
@@ -851,16 +874,19 @@ class Molecule:
                     how='inner',
                     suffixes=('_template', '_instance')
                 )
-                # logger.debug(f'merged\n{tdf.to_string()}')
+                logger.debug(f'merged\n{tdf.to_string()}')
                 for i, r in tdf.iterrows():
+                    logger.debug(f'r {r}')
                     temp_idx = r['globalIdx_template']
                     inst_idx = r['globalIdx_instance']
-                    # logger.debug(f't {temp_idx} <-> i {inst_idx}')
+                    logger.debug(f't {temp_idx} <-> i {inst_idx}')
                     # only map template atoms that are identified in the passed in set
                     if temp_idx in ut:
+                        logger.debug(f'')
                         ut.remove(temp_idx)
                         temp2inst[temp_idx] = inst_idx
                         inst2temp[inst_idx] = temp_idx
+                        logger.debug(f'Passed: temp2inst {temp2inst}, inst2temp {inst2temp}')
                     if temp_idx in temp2inst and temp2inst[temp_idx] != inst_idx:
                         raise Exception(
                             f'Error: temp_idx {temp_idx} already claimed in temp2inst; bug'
@@ -987,6 +1013,7 @@ class Molecule:
         :param mol2filename: alternative coordinate mol2 file, defaults to ''
         :type mol2filename: str, optional
         """
+        logger.debug(f"loading {topfilename} and {grofilename}")
         self.TopoCoord = TopoCoord(
             topfilename=topfilename,
             grofilename=grofilename,
@@ -1145,6 +1172,8 @@ class Molecule:
                 int(x.split('H')[1] if x.split('H')[1] != '' else '0')
             )
         }
+        logger.debug(f"myHighestH: {myHighestH}")
+        logger.debug(f"otHighestH: {otHighestH}")
         assert len(myHighestH) == 1
         assert len(otHighestH) == 1
         logger.debug(f'Highest-named H partner of {at_idx} is {myHighestH}')
